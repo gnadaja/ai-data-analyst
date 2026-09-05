@@ -10,3 +10,4 @@ class DatasetAnalysisResponse(BaseModel):
     duplicate_rows: int
     missing_values: int
     columns: list[dict[str, int | str]]
+    numeric_statistics: list[dict[str, int | float | str | None]]

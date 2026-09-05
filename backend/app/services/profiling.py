@@ -19,8 +19,20 @@ def load_dataframe(file_name: str, content: bytes) -> pd.DataFrame:
 
 def profile_dataframe(dataframe: pd.DataFrame) -> dict:
     column_profiles = []
+    numeric_statistics = []
     for position, column in enumerate(dataframe.columns):
         series = dataframe[column]
+        if pd.api.types.is_numeric_dtype(series):
+            numeric_statistics.append(
+                {
+                    "name": str(column),
+                    "count": int(series.notna().sum()),
+                    "minimum": number_or_none(series.min()),
+                    "average": number_or_none(series.mean()),
+                    "median": number_or_none(series.median()),
+                    "maximum": number_or_none(series.max()),
+                }
+            )
         column_profiles.append(
             {
                 "name": str(column),
@@ -36,4 +48,11 @@ def profile_dataframe(dataframe: pd.DataFrame) -> dict:
         "duplicate_rows": int(dataframe.duplicated().sum()),
         "missing_values": int(dataframe.isna().sum().sum()),
         "columns": column_profiles,
+        "numeric_statistics": numeric_statistics,
     }
+
+
+def number_or_none(value):
+    if pd.isna(value):
+        return None
+    return float(value) if isinstance(value, float) else int(value)

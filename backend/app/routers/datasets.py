@@ -55,6 +55,10 @@ def analyze_dataset(
                 "row_count": profile["row_count"],
                 "column_count": profile["column_count"],
                 "duplicate_rows": profile["duplicate_rows"],
+                "analysis_summary": {
+                    "missing_values": profile["missing_values"],
+                    "numeric_statistics": profile["numeric_statistics"],
+                },
                 "error_message": None,
             }
         ).eq("id", dataset_id).execute()
