@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,6 +9,7 @@ from app.schemas.datasets import DatasetAnalysisResponse
 from app.services.profiling import load_dataframe, profile_dataframe
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/{dataset_id}/analyze", response_model=DatasetAnalysisResponse)
@@ -17,14 +19,18 @@ def analyze_dataset(
 ) -> DatasetAnalysisResponse:
     token = user["access_token"]
     supabase: Client = get_supabase_client(token)
-    dataset_response = (
-        supabase.table("ai_datasets")
-        .select("id, user_id, name, file_path, status")
-        .eq("id", dataset_id)
-        .eq("user_id", user["id"])
-        .maybe_single()
-        .execute()
-    )
+    try:
+        dataset_response = (
+            supabase.table("ai_datasets")
+            .select("id, user_id, name, file_path, status")
+            .eq("id", dataset_id)
+            .eq("user_id", user["id"])
+            .maybe_single()
+            .execute()
+        )
+    except Exception as error:
+        logger.exception("Could not load dataset %s for user %s", dataset_id, user["id"])
+        raise HTTPException(status_code=502, detail="Could not load dataset metadata") from error
     dataset = dataset_response.data
     if not dataset:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
@@ -52,10 +58,17 @@ def analyze_dataset(
             }
         ).eq("id", dataset_id).execute()
     except Exception as error:
-        authorized_client.table("ai_datasets").update(
-            {"status": "failed", "error_message": str(error)[:500]}
-        ).eq("id", dataset_id).execute()
-        raise HTTPException(status_code=422, detail="Could not analyze dataset") from error
+        logger.exception("Could not analyze dataset %s", dataset_id)
+        try:
+            authorized_client.table("ai_datasets").update(
+                {"status": "failed", "error_message": str(error)[:500]}
+            ).eq("id", dataset_id).execute()
+        except Exception:
+            logger.exception("Could not mark dataset %s as failed", dataset_id)
+        raise HTTPException(
+            status_code=422,
+            detail=f"Could not analyze dataset: {error}",
+        ) from error
 
     return DatasetAnalysisResponse(
         dataset_id=dataset_id,

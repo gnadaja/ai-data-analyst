@@ -65,12 +65,17 @@ export function UploadDataset() {
       setError(insertError.message);
     } else {
       const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/datasets/${datasetId}/analyze`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session?.access_token ?? ""}` },
-      });
-      if (!response.ok) {
-        setError("El archivo se subió, pero no pudimos analizarlo todavía.");
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/datasets/${datasetId}/analyze`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session?.access_token ?? ""}` },
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          setError(payload?.detail ?? `El análisis falló (HTTP ${response.status}).`);
+        }
+      } catch {
+        setError("No se pudo conectar con el backend de análisis.");
       }
       router.refresh();
     }
