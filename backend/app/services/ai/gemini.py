@@ -35,7 +35,7 @@ class GeminiAIService:
                     endpoint,
                     params={"key": settings.gemini_api_key},
                     json=payload,
-                    timeout=30,
+                    timeout=60,
                 )
                 response.raise_for_status()
                 text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
@@ -57,6 +57,18 @@ class GeminiAIService:
                     status_code,
                     error.response.text[:500],
                 )
+                return None
+            except httpx.TimeoutException:
+                if attempt < 2:
+                    delay = 2**attempt
+                    logger.warning(
+                        "Gemini timed out; retrying in %s seconds (attempt %s/3)",
+                        delay,
+                        attempt + 1,
+                    )
+                    time.sleep(delay)
+                    continue
+                logger.error("Gemini timed out after 3 attempts")
                 return None
             except (httpx.HTTPError, KeyError, TypeError, ValueError):
                 logger.exception("Gemini report generation failed")
