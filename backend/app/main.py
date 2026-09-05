@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.routers.datasets import router as datasets_router
 
 settings = get_settings()
 
@@ -18,6 +19,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+app.include_router(datasets_router)
 
 
 @app.get("/health", tags=["system"])

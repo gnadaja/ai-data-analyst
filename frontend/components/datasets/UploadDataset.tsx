@@ -64,6 +64,14 @@ export function UploadDataset() {
       await supabase.storage.from("ai-datasets").remove([filePath]);
       setError(insertError.message);
     } else {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/datasets/${datasetId}/analyze`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token ?? ""}` },
+      });
+      if (!response.ok) {
+        setError("El archivo se subió, pero no pudimos analizarlo todavía.");
+      }
       router.refresh();
     }
     setLoading(false);
