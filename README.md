@@ -32,6 +32,24 @@ uvicorn app.main:app --reload
 
 La API estará disponible en `http://localhost:8000` y su documentación en `http://localhost:8000/docs`.
 
+## Activar datasets en Supabase
+
+1. Abre el proyecto de Supabase.
+2. Ve a **SQL Editor**.
+3. Crea una nueva consulta.
+4. Copia el contenido de `supabase/migrations/202609050001_ai_data_foundation.sql`.
+5. Ejecuta la consulta.
+
+La migración crea las tablas privadas de AI Data Analyst, el bucket privado `ai-datasets`, las políticas RLS y el perfil automático para usuarios nuevos. No ejecutes este SQL en otro proyecto sin revisar primero las políticas existentes.
+
+Después de ejecutar la migración, prueba el flujo en producción:
+
+1. Inicia sesión en el frontend.
+2. Abre `/dashboard`.
+3. Sube un CSV pequeño.
+4. Comprueba que aparece en la lista de datasets.
+5. En Supabase revisa **Storage → ai-datasets** y confirma que el archivo está dentro de la carpeta del usuario.
+
 ## Principios técnicos
 
 - Los datasets pertenecen a un usuario y se mantienen privados.
