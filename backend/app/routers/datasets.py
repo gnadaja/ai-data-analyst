@@ -54,6 +54,7 @@ def analyze_dataset(
                 "status": "ready",
                 "row_count": profile["row_count"],
                 "column_count": profile["column_count"],
+                "duplicate_rows": profile["duplicate_rows"],
                 "error_message": None,
             }
         ).eq("id", dataset_id).execute()
