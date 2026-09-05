@@ -53,6 +53,7 @@ def profile_dataframe(dataframe: pd.DataFrame) -> dict:
         "columns": column_profiles,
         "numeric_statistics": numeric_statistics,
         "report": report,
+        "sample_rows": dataframe.head(8).to_dict(orient="records"),
     }
 
 

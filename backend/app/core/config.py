@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     supabase_url: str = ""
     supabase_publishable_key: str = ""
+    gemini_api_key: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

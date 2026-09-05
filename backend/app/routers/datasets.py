@@ -6,6 +6,8 @@ from supabase import Client
 
 from app.core.security import get_current_user, get_supabase_client
 from app.schemas.datasets import DatasetAnalysisResponse
+from app.services.ai.gemini import GeminiAIService
+from app.services.generic_report import build_generic_report
 from app.services.profiling import load_dataframe, profile_dataframe
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
@@ -40,6 +42,8 @@ def analyze_dataset(
         file_content = authorized_client.storage.from_("ai-datasets").download(dataset["file_path"])
         dataframe = load_dataframe(dataset["file_path"], file_content)
         profile = profile_dataframe(dataframe)
+        ai_report = GeminiAIService().create_report(profile)
+        report = ai_report or profile["report"] or build_generic_report(profile)
         (
             authorized_client.table("ai_dataset_columns")
             .delete()
@@ -58,7 +62,7 @@ def analyze_dataset(
                 "analysis_summary": {
                     "missing_values": profile["missing_values"],
                     "numeric_statistics": profile["numeric_statistics"],
-                    "report": profile["report"],
+                    "report": report,
                 },
                 "error_message": None,
             }
