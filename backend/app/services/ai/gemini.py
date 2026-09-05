@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 
 import httpx
 
@@ -20,32 +21,47 @@ class GeminiAIService:
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{settings.gemini_model}:generateContent"
         )
-        try:
-            response = httpx.post(
-                endpoint,
-                params={"key": settings.gemini_api_key},
-                json={
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {
-                        "temperature": 0.2,
-                        "responseMimeType": "application/json",
-                    },
-                },
-                timeout=30,
-            )
-            response.raise_for_status()
-            text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-            return normalize_report(json.loads(text))
-        except httpx.HTTPStatusError as error:
-            logger.error(
-                "Gemini returned HTTP %s: %s",
-                error.response.status_code,
-                error.response.text[:500],
-            )
-            return None
-        except (httpx.HTTPError, KeyError, TypeError, ValueError):
-            logger.exception("Gemini report generation failed")
-            return None
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.2,
+                "responseMimeType": "application/json",
+            },
+        }
+        transient_statuses = {429, 500, 502, 503, 504}
+        for attempt in range(3):
+            try:
+                response = httpx.post(
+                    endpoint,
+                    params={"key": settings.gemini_api_key},
+                    json=payload,
+                    timeout=30,
+                )
+                response.raise_for_status()
+                text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+                return normalize_report(json.loads(text))
+            except httpx.HTTPStatusError as error:
+                status_code = error.response.status_code
+                if status_code in transient_statuses and attempt < 2:
+                    delay = 2**attempt
+                    logger.warning(
+                        "Gemini returned HTTP %s; retrying in %s seconds (attempt %s/3)",
+                        status_code,
+                        delay,
+                        attempt + 1,
+                    )
+                    time.sleep(delay)
+                    continue
+                logger.error(
+                    "Gemini returned HTTP %s: %s",
+                    status_code,
+                    error.response.text[:500],
+                )
+                return None
+            except (httpx.HTTPError, KeyError, TypeError, ValueError):
+                logger.exception("Gemini report generation failed")
+                return None
+        return None
 
 
 def build_prompt(profile: dict) -> str:
