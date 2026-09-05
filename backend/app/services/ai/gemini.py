@@ -9,17 +9,20 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiAIService:
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-
     def create_report(self, dataset_profile: dict) -> dict | None:
         settings = get_settings()
         if not settings.gemini_api_key:
+            logger.warning("Gemini is not configured: GEMINI_API_KEY is empty")
             return None
 
         prompt = build_prompt(dataset_profile)
+        endpoint = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{settings.gemini_model}:generateContent"
+        )
         try:
             response = httpx.post(
-                self.endpoint,
+                endpoint,
                 params={"key": settings.gemini_api_key},
                 json={
                     "contents": [{"parts": [{"text": prompt}]}],
@@ -33,6 +36,13 @@ class GeminiAIService:
             response.raise_for_status()
             text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
             return normalize_report(json.loads(text))
+        except httpx.HTTPStatusError as error:
+            logger.error(
+                "Gemini returned HTTP %s: %s",
+                error.response.status_code,
+                error.response.text[:500],
+            )
+            return None
         except (httpx.HTTPError, KeyError, TypeError, ValueError):
             logger.exception("Gemini report generation failed")
             return None
