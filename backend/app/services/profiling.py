@@ -3,6 +3,8 @@ from pathlib import PurePosixPath
 
 import pandas as pd
 
+from app.services.meta_ads import build_meta_ads_report
+
 SUPPORTED_EXTENSIONS = {"csv", "xls", "xlsx"}
 
 
@@ -42,6 +44,7 @@ def profile_dataframe(dataframe: pd.DataFrame) -> dict:
             }
         )
 
+    report = build_meta_ads_report(dataframe)
     return {
         "row_count": int(len(dataframe.index)),
         "column_count": int(len(dataframe.columns)),
@@ -49,6 +52,7 @@ def profile_dataframe(dataframe: pd.DataFrame) -> dict:
         "missing_values": int(dataframe.isna().sum().sum()),
         "columns": column_profiles,
         "numeric_statistics": numeric_statistics,
+        "report": report,
     }
 
 

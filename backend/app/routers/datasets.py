@@ -58,6 +58,7 @@ def analyze_dataset(
                 "analysis_summary": {
                     "missing_values": profile["missing_values"],
                     "numeric_statistics": profile["numeric_statistics"],
+                    "report": profile["report"],
                 },
                 "error_message": None,
             }
