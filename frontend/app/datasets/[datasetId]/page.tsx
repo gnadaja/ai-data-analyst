@@ -2,21 +2,12 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PORTFOLIO_URL } from "@/lib/portfolio";
-import { MissingValuesChart } from "@/components/analysis/MissingValuesChart";
 import { AnalyzeDatasetButton } from "@/components/analysis/AnalyzeDatasetButton";
 import { MetaAdsReport } from "@/components/analysis/MetaAdsReport";
+import { DataQualityCard } from "@/components/analysis/DataQualityCard";
 
 type DatasetPageProps = {
   params: Promise<{ datasetId: string }>;
-};
-
-type NumericStatistic = {
-  name: string;
-  count: number;
-  minimum: number | null;
-  average: number | null;
-  median: number | null;
-  maximum: number | null;
 };
 
 type MetaAdsReportData = {
@@ -25,6 +16,8 @@ type MetaAdsReportData = {
   kpis: { key: string; label: string; value: number; format: "currency" | "number" | "decimal" }[];
   insights: string[];
   warnings: string[];
+  comparisons: { best: { name: string; roas: number } | null; worst: { name: string; roas: number } | null };
+  quality: { level: "good" | "review" | "incomplete"; label: string; message: string };
 };
 
 export default async function DatasetPage({ params }: DatasetPageProps) {
@@ -42,49 +35,15 @@ export default async function DatasetPage({ params }: DatasetPageProps) {
 
   if (datasetError || !dataset) notFound();
 
-  const { data: columns, error: columnsError } = await supabase
-    .from("ai_dataset_columns")
-    .select("name, data_type, position, missing_count")
-    .eq("dataset_id", datasetId)
-    .order("position", { ascending: true });
-
-  if (columnsError) {
-    return <ErrorState message="No pudimos cargar las columnas de este dataset." />;
-  }
-
-  const totalMissing = columns.reduce((total, column) => total + column.missing_count, 0);
-  const chartData = columns.map((column) => ({ name: column.name, missing_count: column.missing_count }));
-  const numericStatistics = (dataset.analysis_summary?.numeric_statistics ?? []) as NumericStatistic[];
   const report = (dataset.analysis_summary?.report ?? null) as MetaAdsReportData | null;
 
   return (
     <main className="min-h-screen bg-[#f4f8f3] px-6 py-8 text-[#123d42] lg:px-10">
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-4"><div className="flex items-center gap-5"><a href={PORTFOLIO_URL} className="text-sm font-semibold text-[#31575a] transition-colors hover:text-[#d85f4d]">← Volver al portfolio</a><Link href="/dashboard" className="text-sm font-semibold text-[#d85f4d]">← Dashboard</Link></div><span className="text-sm text-[#5d7471]">AI DATA ANALYST</span></header>
       <section className="mx-auto max-w-6xl py-16"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#d85f4d]">Dataset analizado</p><h1 className="mt-3 break-words text-4xl font-semibold tracking-[-0.04em]">{dataset.name}</h1><p className="mt-3 text-sm text-[#5d7471]">Estado: <span className="font-semibold text-[#27634f]">{dataset.status}</span></p></div><div className="flex flex-wrap items-center gap-3"><AnalyzeDatasetButton datasetId={datasetId} /><Link href="/dashboard" className="rounded-full border border-[#9ab3ad] px-4 py-2 text-sm font-semibold text-[#31575a] transition hover:bg-white">← Todos los datasets</Link></div></div>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Filas" value={dataset.row_count ?? "-"} /><Metric label="Columnas" value={dataset.column_count ?? "-"} /><Metric label="Faltantes" value={totalMissing} /><Metric label="Duplicados" value={dataset.duplicate_rows ?? 0} /></div><MetaAdsReport report={report} />
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]"><section className="rounded-2xl border border-[#d9e3dc] bg-white p-6"><h2 className="text-lg font-semibold">Valores faltantes por columna</h2><p className="mt-2 text-sm text-[#5d7471]">Una primera lectura de la calidad del dataset.</p><div className="mt-6"><MissingValuesChart data={chartData} /></div></section><section className="rounded-2xl border border-[#d9e3dc] bg-white p-6"><h2 className="text-lg font-semibold">Estructura</h2><div className="mt-5 overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b border-[#d9e3dc] text-[#6d8580]"><tr><th className="pb-3 pr-4 font-medium">Columna</th><th className="pb-3 pr-4 font-medium">Tipo</th><th className="pb-3 text-right font-medium">Faltantes</th></tr></thead><tbody>{columns.map((column) => <tr key={column.name} className="border-b border-[#eef2ed] last:border-0"><td className="py-3 pr-4 font-medium">{column.name}</td><td className="py-3 pr-4 text-[#5d7471]">{friendlyType(column.data_type)}</td><td className="py-3 text-right text-[#5d7471]">{column.missing_count}</td></tr>)}</tbody></table></div></section></div>
-        <section className="mt-6 rounded-2xl border border-[#d9e3dc] bg-white p-6"><h2 className="text-lg font-semibold">Resumen numérico</h2><p className="mt-2 text-sm text-[#5d7471]">Valores calculados sobre las filas disponibles de cada columna.</p>{numericStatistics.length === 0 ? <p className="mt-6 text-sm text-[#5d7471]">No hay columnas numéricas para resumir.</p> : <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="border-b border-[#d9e3dc] text-[#6d8580]"><tr><th className="pb-3 pr-4 font-medium">Columna</th><th className="pb-3 pr-4 text-right font-medium">Valores</th><th className="pb-3 pr-4 text-right font-medium">Mínimo</th><th className="pb-3 pr-4 text-right font-medium">Promedio</th><th className="pb-3 pr-4 text-right font-medium">Mediana</th><th className="pb-3 text-right font-medium">Máximo</th></tr></thead><tbody>{numericStatistics.map((stat) => <tr key={stat.name} className="border-b border-[#eef2ed] last:border-0"><td className="py-3 pr-4 font-medium">{stat.name}</td><td className="py-3 pr-4 text-right text-[#5d7471]">{stat.count}</td><td className="py-3 pr-4 text-right text-[#5d7471]">{formatNumber(stat.minimum)}</td><td className="py-3 pr-4 text-right text-[#5d7471]">{formatNumber(stat.average)}</td><td className="py-3 pr-4 text-right text-[#5d7471]">{formatNumber(stat.median)}</td><td className="py-3 text-right text-[#5d7471]">{formatNumber(stat.maximum)}</td></tr>)}</tbody></table></div>}</section>
+        <DataQualityCard quality={report?.quality ?? null} /><MetaAdsReport report={report} />
       </section>
     </main>
   );
 }
 
-function Metric({ label, value }: { label: string; value: number | string }) {
-  return <div className="rounded-2xl border border-[#d9e3dc] bg-white p-5"><p className="text-sm text-[#6d8580]">{label}</p><p className="mt-2 text-3xl font-semibold tracking-[-0.04em]">{value}</p></div>;
-}
-
-function friendlyType(type: string) {
-  if (type.startsWith("int")) return "Número entero";
-  if (type.startsWith("float")) return "Número decimal";
-  if (type === "bool") return "Sí / No";
-  if (type.includes("datetime")) return "Fecha y hora";
-  return "Texto";
-}
-
-function formatNumber(value: number | null) {
-  return value === null ? "-" : new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(value);
-}
-
-function ErrorState({ message }: { message: string }) {
-  return <main className="grid min-h-screen place-items-center bg-[#f4f8f3] px-6"><div className="rounded-2xl border border-[#f2b3a3] bg-white p-8 text-center"><p className="font-semibold text-[#b74e3e]">{message}</p><Link href="/dashboard" className="mt-5 inline-block font-semibold text-[#d85f4d]">← Volver al dashboard</Link></div></main>;
-}
