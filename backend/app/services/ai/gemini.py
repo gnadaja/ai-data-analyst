@@ -99,18 +99,50 @@ class GeminiAIService:
             "contents": contents,
             "generationConfig": {"temperature": 0.2},
         }
-        try:
-            response = httpx.post(
-                endpoint,
-                headers={"x-goog-api-key": settings.gemini_api_key},
-                json=payload,
-                timeout=60,
-            )
-            response.raise_for_status()
-            return response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
-            logger.exception("Gemini chat response failed")
-            return None
+        transient_statuses = {429, 500, 502, 503, 504}
+        for attempt in range(3):
+            try:
+                response = httpx.post(
+                    endpoint,
+                    headers={"x-goog-api-key": settings.gemini_api_key},
+                    json=payload,
+                    timeout=60,
+                )
+                response.raise_for_status()
+                answer = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+                if not isinstance(answer, str) or not answer.strip():
+                    raise ValueError("Gemini returned an empty chat response")
+                return answer.strip()
+            except httpx.HTTPStatusError as error:
+                status_code = error.response.status_code
+                if status_code in transient_statuses and attempt < 2:
+                    delay = 2**attempt
+                    logger.warning(
+                        "Gemini chat returned HTTP %s; retrying in %s seconds (attempt %s/3)",
+                        status_code,
+                        delay,
+                        attempt + 1,
+                    )
+                    time.sleep(delay)
+                    continue
+                logger.error("Gemini chat returned HTTP %s", status_code)
+                return None
+            except httpx.TimeoutException:
+                if attempt < 2:
+                    delay = 2**attempt
+                    logger.warning(
+                        "Gemini chat timed out; retrying in %s seconds (attempt %s/3)",
+                        delay,
+                        attempt + 1,
+                    )
+                    time.sleep(delay)
+                    continue
+                logger.error("Gemini chat timed out after 3 attempts")
+                return None
+            except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
+                logger.exception("Gemini chat response failed")
+                return None
+        return None
 
 
 def build_prompt(profile: dict) -> str:
