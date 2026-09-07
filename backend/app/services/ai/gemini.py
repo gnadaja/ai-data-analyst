@@ -33,7 +33,7 @@ class GeminiAIService:
             try:
                 response = httpx.post(
                     endpoint,
-                    params={"key": settings.gemini_api_key},
+                    headers={"x-goog-api-key": settings.gemini_api_key},
                     json=payload,
                     timeout=60,
                 )
@@ -102,7 +102,7 @@ class GeminiAIService:
         try:
             response = httpx.post(
                 endpoint,
-                params={"key": settings.gemini_api_key},
+                headers={"x-goog-api-key": settings.gemini_api_key},
                 json=payload,
                 timeout=60,
             )
