@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import Client
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 def analyze_dataset(
     dataset_id: str,
     user: Annotated[dict, Depends(get_current_user)],
+    locale: Literal["es", "en"] = "es",
 ) -> DatasetAnalysisResponse:
     token = user["access_token"]
     supabase: Client = get_supabase_client(token)
@@ -42,8 +43,8 @@ def analyze_dataset(
         file_content = authorized_client.storage.from_("ai-datasets").download(dataset["file_path"])
         dataframe = load_dataframe(dataset["file_path"], file_content)
         profile = profile_dataframe(dataframe)
-        ai_report = GeminiAIService().create_report(profile)
-        report = ai_report or profile["report"] or build_generic_report(profile)
+        ai_report = GeminiAIService().create_report(profile, locale)
+        report = ai_report or profile["report"] or build_generic_report(profile, locale)
         (
             authorized_client.table("ai_dataset_columns")
             .delete()
@@ -141,6 +142,7 @@ def chat_about_dataset(
             context,
             [message.model_dump() for message in request.history],
             request.message,
+            request.locale,
         )
     except GeminiServiceError as error:
         logger.error("Gemini chat failed with status %s", error.status_code)

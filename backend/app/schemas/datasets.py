@@ -23,6 +23,7 @@ class ChatMessage(BaseModel):
 class DatasetChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     history: list[ChatMessage] = Field(default_factory=list, max_length=12)
+    locale: Literal["es", "en"] = "es"
 
 
 class DatasetChatResponse(BaseModel):

@@ -19,11 +19,11 @@ export function MissingValuesChart({ data }: { data: ColumnMetric[] }) {
     <div className="h-72 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
-          <CartesianGrid stroke="#d9e3dc" strokeDasharray="4 4" vertical={false} />
-          <XAxis dataKey="label" tick={{ fill: "#5d7471", fontSize: 11 }} tickLine={false} axisLine={false} />
-          <YAxis allowDecimals={false} tick={{ fill: "#5d7471", fontSize: 11 }} tickLine={false} axisLine={false} />
-          <Tooltip cursor={{ fill: "#f4f8f3" }} contentStyle={{ borderRadius: 12, border: "1px solid #d9e3dc" }} />
-          <Bar dataKey="missing_count" name="Valores faltantes" fill="#d85f4d" radius={[5, 5, 0, 0]} />
+          <CartesianGrid stroke="var(--border)" strokeDasharray="4 4" vertical={false} />
+          <XAxis dataKey="label" tick={{ fill: "var(--text-soft)", fontSize: 11 }} tickLine={false} axisLine={false} />
+          <YAxis allowDecimals={false} tick={{ fill: "var(--text-soft)", fontSize: 11 }} tickLine={false} axisLine={false} />
+          <Tooltip cursor={{ fill: "var(--primary-soft)" }} contentStyle={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface)" }} />
+          <Bar dataKey="missing_count" name="Valores faltantes" fill="var(--primary)" radius={[5, 5, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

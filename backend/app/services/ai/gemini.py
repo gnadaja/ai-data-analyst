@@ -10,13 +10,13 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiAIService:
-    def create_report(self, dataset_profile: dict) -> dict | None:
+    def create_report(self, dataset_profile: dict, locale: str = "es") -> dict | None:
         settings = get_settings()
         if not settings.gemini_api_key:
             logger.warning("Gemini is not configured: GEMINI_API_KEY is empty")
             return None
 
-        prompt = build_prompt(dataset_profile)
+        prompt = build_prompt(dataset_profile, locale)
         endpoint = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{settings.gemini_model}:generateContent"
@@ -80,6 +80,7 @@ class GeminiAIService:
         dataset_context: dict,
         history: list[dict[str, str]],
         message: str,
+        locale: str = "es",
     ) -> str | None:
         settings = get_settings()
         if not settings.gemini_api_key:
@@ -90,7 +91,7 @@ class GeminiAIService:
             {"role": "user" if item["role"] == "user" else "model", "parts": [{"text": item["content"]}]}
             for item in history
         ]
-        contents.append({"role": "user", "parts": [{"text": build_chat_prompt(dataset_context, message)}]})
+        contents.append({"role": "user", "parts": [{"text": build_chat_prompt(dataset_context, message, locale)}]})
         endpoint = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{settings.gemini_model}:generateContent"
@@ -153,9 +154,12 @@ class GeminiServiceError(Exception):
         super().__init__(detail)
 
 
-def build_prompt(profile: dict) -> str:
+def build_prompt(profile: dict, locale: str = "es") -> str:
+    language = "English" if locale == "en" else "Spanish"
     return f"""Eres un analista de datos para pequeñas empresas.
 Analiza el perfil de un archivo tabular y devuelve SOLO JSON valido.
+
+Escribe todos los textos del JSON en {language}.
 
 No inventes valores. Usa solo los datos del perfil. Detecta el tipo de dataset
 (por ejemplo meta_ads, ventas, ecommerce, marketing, finanzas o generico).
@@ -182,9 +186,10 @@ Perfil del dataset:
 """
 
 
-def build_chat_prompt(context: dict, message: str) -> str:
+def build_chat_prompt(context: dict, message: str, locale: str = "es") -> str:
+    language = "English" if locale == "en" else "Spanish"
     return f"""Eres un analista de datos que ayuda a interpretar un informe.
-Responde en espanol, con claridad y de forma concisa, usando solo el contexto
+Responde en {language}, con claridad y de forma concisa, usando solo el contexto
 del informe proporcionado abajo. No inventes valores ni afirmes que ejecutaste
 calculos que no aparecen en el contexto. Si la pregunta no puede responderse
 con estos datos, dilo claramente y explica que dato faltaria.
