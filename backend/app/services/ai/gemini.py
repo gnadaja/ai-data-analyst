@@ -125,8 +125,9 @@ class GeminiAIService:
                     )
                     time.sleep(delay)
                     continue
-                logger.error("Gemini chat returned HTTP %s", status_code)
-                return None
+                detail = response.text[:300].replace(settings.gemini_api_key, "[REDACTED]")
+                logger.error("Gemini chat returned HTTP %s: %s", status_code, detail)
+                raise GeminiServiceError(status_code, detail) from error
             except httpx.TimeoutException:
                 if attempt < 2:
                     delay = 2**attempt
@@ -138,11 +139,18 @@ class GeminiAIService:
                     time.sleep(delay)
                     continue
                 logger.error("Gemini chat timed out after 3 attempts")
-                return None
+                raise GeminiServiceError(504, "Gemini request timed out") from error
             except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
                 logger.exception("Gemini chat response failed")
-                return None
+                raise GeminiServiceError(502, "Gemini returned an invalid response") from error
         return None
+
+
+class GeminiServiceError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(detail)
 
 
 def build_prompt(profile: dict) -> str:

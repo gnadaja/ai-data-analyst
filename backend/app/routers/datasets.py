@@ -6,7 +6,7 @@ from supabase import Client
 
 from app.core.security import get_current_user, get_supabase_client
 from app.schemas.datasets import DatasetAnalysisResponse, DatasetChatRequest, DatasetChatResponse
-from app.services.ai.gemini import GeminiAIService
+from app.services.ai.gemini import GeminiAIService, GeminiServiceError
 from app.services.generic_report import build_generic_report
 from app.services.profiling import load_dataframe, profile_dataframe
 
@@ -142,6 +142,12 @@ def chat_about_dataset(
             [message.model_dump() for message in request.history],
             request.message,
         )
+    except GeminiServiceError as error:
+        logger.error("Gemini chat failed with status %s", error.status_code)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Gemini error HTTP {error.status_code}: {error.detail}",
+        ) from error
     except Exception as error:
         logger.exception("Could not answer chat for dataset %s", dataset_id)
         raise HTTPException(status_code=502, detail="Could not answer the question") from error
